@@ -1,12 +1,28 @@
 import './App.css';
-import { useState } from "react";
-// import feedback from './components/feedback';
-function App(props) {
+import { useEffect, useState } from "react";
 
-  const [notes,setNotes] = useState(props.notes)
+import Note from './components/Note';
+import noteServices from './services/noteServices';
+
+// import feedback from './components/feedback';
+function App() {
+
+  const [notes,setNotes] = useState([])
   const [newNote,setNewNote] = useState('')
   const [showAll, setShowAll]= useState(true)
 
+
+  useEffect(()=>{
+    noteServices.getAllNotes()
+    .then(response=> {
+      setNotes(response.data)
+      console.log(response.data )
+
+    })
+    .catch(err => console.log(err))
+
+
+  },[])
 const notesToShow = showAll 
 ? notes
 : notes.filter(n=> n.important === true)  
@@ -16,21 +32,68 @@ const notesToShow = showAll
     setNewNote(event.target.value)
   }
 
+  const handleUpdate = (id)=> {
+    alert(id)
+    let targetNote = notes.find(n=> n.id === id)
+    console.log(targetNote)
+    
+    targetNote = {...targetNote, important:!targetNote.important}
+
+    noteServices.changeImportant(id,targetNote)
+    .then(response=>{
+      console.log(response.data)
+      setNotes(notes.map(n=> n.id === id ? response.date : n))
+     
+    }).catch(err=> console.log(err))
+
+  }
+
 
   const handleAdd = (event)=>{
     event.preventDefault()
     console.log(event.target)
 
     const note = {
-      id:notes.length+1,
+      // id:notes.length+1,
       content:newNote,
       date: new Date().toISOString(),
       important: Math.random()<0.5,
     }
-    if(newNote !== "") setNotes(notes.concat(note))
-    
+    if(newNote !== "") {
+      // axios.post('http://localhost:3001/notes', note)
+      noteServices.createNote(note)
+      .then(response=> {
+        console.log(response)
+setNotes(notes.concat(response.data))
     setNewNote('')
+      }).catch(err=> console.log(err))
+    }
   }
+
+  // const handleDelete = (id)=> {
+  //   axios.delete(`http://localhost:3001/notes/${id}`)
+  //   .then(
+  //     response => {console.log(response)
+      // setNotes(notes.filter(n => n.id !== id))
+  //     }
+  //   ).catch(err => console.log(err))
+  // }
+
+  const handleDelete = async(id) =>  {
+
+    try{
+    if(window.confirm(`Are you sure want delete?${id}`)){
+      console.log(id)
+      await noteServices.deleteNote(id)
+      setNotes(notes.filter(n => n.id !== id))
+    }
+    
+    }catch(err){
+      console.log(err)
+    }
+  }
+
+ 
   // // const{name,age}=props
   // const [counter, setCounter]= useState(0)
   // // setTimeout(
@@ -62,13 +125,19 @@ const notesToShow = showAll
   return(
     <>
     <h2>Notes </h2>
-    <button onClick={()=> setShowAll(!showAll)}>Show All </button>
+    <button onClick={()=> setShowAll(!showAll)}>{showAll ? 'show important':'show all'} </button>
 
     <ul>
     {notesToShow.map(note => 
-    <li key={note.id}>{note.content} <p>{note.date}</p></li>
+  <Note 
+  key={note.id} 
+  note={note} 
+  handleDelete={()=>handleDelete(note.id)}
+  handleUpdate={()=>handleUpdate(note.id)}
+  />
     
     )}
+
     </ul>
 
     <form>
